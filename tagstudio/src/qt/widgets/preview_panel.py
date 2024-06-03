@@ -121,7 +121,8 @@ class PreviewPanel(QWidget):
         )
         self.file_label.setStyleSheet("font-weight: bold; font-size: 12px")
 
-        self.dimensions_label = QLabel("Dimensions")
+        self.dimensions_label = QLabel("dimensionsLabel")
+        self.date_label = QLabel("dateLabel")
         self.dimensions_label.setWordWrap(True)
         # self.dim_label.setTextInteractionFlags(
         # 	Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -139,6 +140,7 @@ class PreviewPanel(QWidget):
         )
 
         self.dimensions_label.setStyleSheet(properties_style)
+        self.date_label.setStyleSheet(properties_style)
 
         self.scroll_layout = QVBoxLayout()
         self.scroll_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -176,6 +178,7 @@ class PreviewPanel(QWidget):
 
         info_layout.addWidget(self.file_label)
         info_layout.addWidget(self.dimensions_label)
+        info_layout.addWidget(self.date_label)
         info_layout.addWidget(scroll_area)
 
         # keep list of rendered libraries to avoid needless re-rendering
@@ -425,6 +428,24 @@ class PreviewPanel(QWidget):
                 self.lib.add_field_to_entry(item_pair[1], field_id)
                 added.add(item_pair[1])
 
+    def update_date_label(self, filepath: Path | None = None) -> None:
+        """
+        Updates the "Date Created" and "Date Modified" file property labels.
+        """
+        if filepath and filepath.is_file():
+            created: dt = dt.fromtimestamp(filepath.stat().st_ctime)
+            modified: dt = dt.fromtimestamp(filepath.stat().st_mtime)
+            self.date_label.setText(
+                f"Created:  {dt.strftime(created, "%a, %b %m, %Y - %r")}\n"
+                f"Modified:  {dt.strftime(modified, "%a, %b %m, %Y - %r")}"
+            )
+            self.date_label.setHidden(False)
+        elif filepath:
+            self.date_label.setText("Created:  N/A\nModified:  N/A")
+            self.date_label.setHidden(False)
+        else:
+            self.date_label.setHidden(True)
+
     # def update_widgets(self, item: Union[Entry, Collation, Tag]):
     def update_widgets(self):
         """
@@ -446,6 +467,7 @@ class PreviewPanel(QWidget):
                 self.file_label.setCursor(Qt.CursorShape.ArrowCursor)
 
                 self.dimensions_label.setText("")
+                self.update_date_label()
                 self.preview_img.setContextMenuPolicy(
                     Qt.ContextMenuPolicy.NoContextMenu
                 )
@@ -554,6 +576,7 @@ class PreviewPanel(QWidget):
                             self.dimensions_label.setText(
                                 f"{filepath.suffix.upper()[1:]}  •  {format_size(filepath.stat().st_size)}"
                             )
+                        self.update_date_label(filepath)
 
                         if not filepath.is_file():
                             raise FileNotFoundError
@@ -563,12 +586,14 @@ class PreviewPanel(QWidget):
                         logging.info(
                             f"[PreviewPanel][ERROR] Couldn't Render thumbnail for {filepath} (because of {e})"
                         )
+                        self.update_date_label()
 
                     except (FileNotFoundError, cv2.error) as e:
                         self.dimensions_label.setText(f"{filepath.suffix.upper()}")
                         logging.info(
                             f"[PreviewPanel][ERROR] Couldn't Render thumbnail for {filepath} (because of {e})"
                         )
+                        self.update_date_label()
                     except (
                         UnidentifiedImageError,
                         DecompressionBombError,
@@ -579,6 +604,7 @@ class PreviewPanel(QWidget):
                         logging.info(
                             f"[PreviewPanel][ERROR] Couldn't Render thumbnail for {filepath} (because of {e})"
                         )
+                        self.update_date_label(filepath)
 
                     try:
                         self.preview_img.clicked.disconnect()
@@ -613,6 +639,7 @@ class PreviewPanel(QWidget):
             self.preview_img.show()
             self.preview_vid.stop()
             self.preview_vid.hide()
+            self.update_date_label()
             if self.selected != self.driver.selected:
                 self.file_label.setText(f"{len(self.driver.selected)} Items Selected")
                 self.file_label.setCursor(Qt.CursorShape.ArrowCursor)
