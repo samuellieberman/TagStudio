@@ -7,13 +7,12 @@ from pathlib import Path
 import time
 import typing
 from datetime import datetime as dt
-
 import cv2
 import rawpy
 from PIL import Image, UnidentifiedImageError
 from PIL.Image import DecompressionBombError
 from PySide6.QtCore import Signal, Qt, QSize
-from PySide6.QtGui import QResizeEvent, QAction
+from PySide6.QtGui import QResizeEvent, QAction, QMovie
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -27,10 +26,10 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 from humanfriendly import format_size
-
 from src.core.enums import SettingItems, Theme
 from src.core.library import Entry, ItemType, Library
 from src.core.constants import VIDEO_TYPES, IMAGE_TYPES, RAW_IMAGE_TYPES, TS_FOLDER_NAME
+from src.qt.helpers.rounded_pixmap_style import RoundedPixmapStyle
 from src.qt.helpers.file_opener import FileOpenerLabel, FileOpenerHelper, open_file
 from src.qt.modals.add_field import AddFieldModal
 from src.qt.widgets.thumb_renderer import ThumbRenderer
@@ -87,9 +86,17 @@ class PreviewPanel(QWidget):
         self.preview_img.setMinimumSize(*self.img_button_size)
         self.preview_img.setFlat(True)
         self.preview_img.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
-
         self.preview_img.addAction(self.open_file_action)
         self.preview_img.addAction(self.open_explorer_action)
+
+        self.preview_gif = QLabel()
+        self.preview_gif.setMinimumSize(*self.img_button_size)
+        self.preview_gif.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+        self.preview_gif.setCursor(Qt.CursorShape.ArrowCursor)
+        self.preview_gif.addAction(self.open_file_action)
+        self.preview_gif.addAction(self.open_explorer_action)
+        self.preview_gif.hide()
+
         self.preview_vid = VideoPlayer(driver)
         self.preview_vid.hide()
         self.thumb_renderer = ThumbRenderer()
@@ -111,6 +118,8 @@ class PreviewPanel(QWidget):
 
         image_layout.addWidget(self.preview_img)
         image_layout.setAlignment(self.preview_img, Qt.AlignmentFlag.AlignCenter)
+        image_layout.addWidget(self.preview_gif)
+        image_layout.setAlignment(self.preview_gif, Qt.AlignmentFlag.AlignCenter)
         image_layout.addWidget(self.preview_vid)
         image_layout.setAlignment(self.preview_vid, Qt.AlignmentFlag.AlignCenter)
         self.image_container.setMinimumSize(*self.img_button_size)
@@ -390,20 +399,14 @@ class PreviewPanel(QWidget):
         self.preview_vid.resizeVideo(adj_size)
         self.preview_vid.setMaximumSize(adj_size)
         self.preview_vid.setMinimumSize(adj_size)
-        # self.preview_img.setMinimumSize(adj_size)
-
-        # if self.preview_img.iconSize().toTuple()[0] < self.preview_img.size().toTuple()[0] + 10:
-        # 	if type(self.item) == Entry:
-        # 		filepath = os.path.normpath(f'{self.lib.library_dir}/{self.item.path}/{self.item.filename}')
-        # 		self.thumb_renderer.render(time.time(), filepath, self.preview_img.size().toTuple(), self.devicePixelRatio(),update_on_ratio_change=True)
-
-        # logging.info(f' Img Aspect Ratio: {self.image_ratio}')
-        # logging.info(f'  Max Button Size: {size}')
-        # logging.info(f'Container Size: {(self.image_container.size().width(), self.image_container.size().height())}')
-        # logging.info(f'Final Button Size: {(adj_width, adj_height)}')
-        # logging.info(f'')
-        # logging.info(f'  Icon Size: {self.preview_img.icon().actualSize().toTuple()}')
-        # logging.info(f'Button Size: {self.preview_img.size().toTuple()}')
+        self.preview_gif.setMaximumSize(adj_size)
+        self.preview_gif.setMinimumSize(adj_size)
+        proxy_style = RoundedPixmapStyle(radius=8)
+        self.preview_gif.setStyle(proxy_style)
+        self.preview_vid.setStyle(proxy_style)
+        m = self.preview_gif.movie()
+        if m:
+            m.setScaledSize(adj_size)
 
     def place_add_field_button(self):
         self.scroll_layout.addWidget(self.afb_container)
@@ -475,6 +478,7 @@ class PreviewPanel(QWidget):
             self.preview_img.show()
             self.preview_vid.stop()
             self.preview_vid.hide()
+            self.preview_gif.hide()
             self.selected = list(self.driver.selected)
             self.add_field_button.setHidden(True)
 
@@ -485,6 +489,7 @@ class PreviewPanel(QWidget):
                 self.preview_img.show()
                 self.preview_vid.stop()
                 self.preview_vid.hide()
+                self.preview_gif.hide()
                 item: Entry = self.lib.get_entry(self.driver.selected[0][1])
                 # If a new selection is made, update the thumbnail and filepath.
                 if not self.selected or self.selected != self.driver.selected:
@@ -515,6 +520,21 @@ class PreviewPanel(QWidget):
 
                     # TODO: Do this somewhere else, this is just here temporarily.
                     try:
+                        if filepath.suffix.lower() in [".gif"]:
+                            movie = QMovie(str(filepath))
+                            image = Image.open(str(filepath))
+                            self.preview_gif.setMovie(movie)
+                            self.resizeEvent(
+                                QResizeEvent(
+                                    QSize(image.width, image.height),
+                                    QSize(image.width, image.height),
+                                )
+                            )
+                            movie.start()
+                            self.preview_img.hide()
+                            self.preview_vid.hide()
+                            self.preview_gif.show()
+
                         image = None
                         if filepath.suffix.lower() in IMAGE_TYPES:
                             image = Image.open(str(filepath))
@@ -586,13 +606,18 @@ class PreviewPanel(QWidget):
                             f"[PreviewPanel][ERROR] Couldn't Render thumbnail for {filepath} (because of {e})"
                         )
 
+                    # TODO: Implement a clickable label to use for the GIF preview.
                     try:
                         self.preview_img.clicked.disconnect()
+                        # self.preview_gif.clicked.disconnect()
                     except RuntimeError:
                         pass
                     self.preview_img.clicked.connect(
                         lambda checked=False, filepath=filepath: open_file(filepath)
                     )
+                    # self.preview_gif.clicked.connect(
+                    #     lambda checked=False, filepath=filepath: open_file(filepath)
+                    # )
 
                 self.selected = list(self.driver.selected)
                 for i, f in enumerate(item.fields):
