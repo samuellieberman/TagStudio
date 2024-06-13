@@ -28,6 +28,7 @@ IMAGE_TYPES: list[str] = [
     ".jp2",
     ".j2k",
     ".jpg2",
+    ".psd",
 ]
 RAW_IMAGE_TYPES: list[str] = [".raw", ".dng", ".rw2", ".nef", ".arw", ".crw", ".cr3"]
 VIDEO_TYPES: list[str] = [
