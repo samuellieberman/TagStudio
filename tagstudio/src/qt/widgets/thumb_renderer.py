@@ -317,6 +317,7 @@ class ThumbRenderer(QObject):
 
     def _album_artwork(self, filepath: Path, ext: str) -> Image.Image | None:
         """Gets an album cover from an audio file if one is present."""
+        image: Image.Image = None
         try:
             artwork = None
             if ext in [".mp3"]:
@@ -335,7 +336,7 @@ class ThumbRenderer(QObject):
                 if mp4_covers:
                     artwork = Image.open(BytesIO(mp4_covers[0]))
             if artwork:
-                return artwork
+                image = artwork
         except (
             mp4.MP4MetadataError,
             mp4.MP4StreamInfoError,
@@ -344,6 +345,7 @@ class ThumbRenderer(QObject):
             logging.error(
                 f"[ThumbRenderer]{ERROR}: Couldn't read album artwork for {filepath.name} ({type(e).__name__})"
             )
+        return image
 
     def _audio_waveform(
         self, filepath: Path, ext: str, size: int
