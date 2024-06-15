@@ -554,6 +554,9 @@ class PreviewPanel(QWidget):
                         elif filepath.suffix.lower() in VIDEO_TYPES:
                             if is_readable_video(filepath):
                                 video = cv2.VideoCapture(str(filepath), cv2.CAP_FFMPEG)
+                                # TODO: Move this check to is_readable_video()
+                                if video.get(cv2.CAP_PROP_FRAME_COUNT) <= 0:
+                                    raise cv2.error("File is invalid or has 0 frames")
                                 video.set(
                                     cv2.CAP_PROP_POS_FRAMES,
                                     (video.get(cv2.CAP_PROP_FRAME_COUNT) // 2),
