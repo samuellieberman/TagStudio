@@ -27,7 +27,7 @@ class TagDatabasePanel(PanelWidget):
         self.lib: Library = library
         # self.callback = callback
         self.first_tag_id = -1
-        self.tag_limit = 30
+        self.tag_limit = 1000
         # self.selected_tag: int = 0
 
         self.setMinimumSize(300, 400)

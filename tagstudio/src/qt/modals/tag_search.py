@@ -39,7 +39,7 @@ class TagSearchPanel(PanelWidget):
         self.lib: Library = library
         # self.callback = callback
         self.first_tag_id = None
-        self.tag_limit = 100
+        self.tag_limit = 1000
         # self.selected_tag: int = 0
         self.setMinimumSize(300, 400)
         self.root_layout = QVBoxLayout(self)
