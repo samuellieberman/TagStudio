@@ -12,8 +12,8 @@ from PySide6.QtWidgets import (
     QFrame,
 )
 
-from src.core.constants import TAG_COLORS
 from src.core.library import Library
+from src.core.tag_sort import get_key
 from src.qt.widgets.panel import PanelWidget, PanelModal
 from src.qt.widgets.tag import TagWidget
 from src.qt.modals.build_tag import BuildTagPanel
@@ -104,16 +104,7 @@ class TagDatabasePanel(PanelWidget):
             # Get tag ids to keep this behaviorally identical
             tags = [t.id for t in self.lib.tags]
 
-        # sort tags by Archived and Favorite at the top, then by color,
-        # and then alphabetically
-        sorted_tags = sorted(
-            tags,
-            key=lambda tag_id: (
-                tag_id not in [0, 1],
-                TAG_COLORS.index(self.lib.get_tag(tag_id).color.lower()),
-                self.lib.get_tag(tag_id).display_name(self.lib),
-            ),
-        )
+        sorted_tags = sorted(tags, key=get_key(self.lib, tags))
 
         first_id_set = False
         for tag_id in sorted_tags:

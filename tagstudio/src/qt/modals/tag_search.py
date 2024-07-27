@@ -17,8 +17,8 @@ from PySide6.QtWidgets import (
     QFrame,
 )
 
-from src.core.constants import TAG_COLORS
 from src.core.library import Library
+from src.core.tag_sort import get_key
 from src.core.palette import ColorType, get_tag_color
 from src.qt.widgets.panel import PanelWidget
 from src.qt.widgets.tag import TagWidget
@@ -112,16 +112,7 @@ class TagSearchPanel(PanelWidget):
         found_tags = self.lib.search_tags(query, include_cluster=True)[: self.tag_limit]
         self.first_tag_id = found_tags[0] if found_tags else None
 
-        # sort tags by Archived and Favorite at the top, then by color,
-        # and then alphabetically
-        sorted_tags = sorted(
-            found_tags,
-            key=lambda tag_id: (
-                tag_id not in [0, 1],
-                TAG_COLORS.index(self.lib.get_tag(tag_id).color.lower()),
-                self.lib.get_tag(tag_id).display_name(self.lib),
-            ),
-        )
+        sorted_tags = sorted(found_tags, key=get_key(self.lib, found_tags))
 
         for tag_id in sorted_tags:
             c = QWidget()
